@@ -352,7 +352,8 @@ img{display:block}
     if (!l) { S.screen = 'looks'; return vLooks(); }
     var h = header(backBtn('toLooks'), '<span style="font-size:13px;color:var(--muted)">' + plural(l.items.length, W) + '</span>');
     h += '<p class="label">' + esc(lcName(l.lc)) + '</p>';
-    h += '<h1 class="h1" style="margin-top:6px;font-size:44px">' + esc(l.name) + '</h1>';
+    h += '<div class="trow"><h1 class="h1" style="margin:0;font-size:44px;flex:1;min-width:0">' + esc(l.name) + '</h1>' +
+      (isStylist() ? '<button class="round sm" data-a="openEditLook" aria-label="Редактировать образ">' + IC.edit + '</button>' : '') + '</div>';
     if (l.comment) h += '<div class="note"><small>Комментарий стилиста</small><p>' + esc(l.comment) + '</p></div>';
     h += '<div class="grid" style="margin-top:' + (l.comment ? 8 : 20) + 'px">' + l.items.map(function (id) { var it = byId(id); return it ? itemCard(it) : ''; }).join('') + '</div>';
     if (isStylist()) h += '<button class="btn ghost" style="margin-top:16px" data-a="askDelLook" data-v="' + l.id + '">' + IC.trash + 'Удалить образ</button>';
@@ -391,6 +392,18 @@ img{display:block}
       '<button class="btn plain" data-a="closeCat">Закрыть</button></div>';
   }
 
+  function vEditLook() {
+    return '<button class="shade" data-a="closeEditLook" aria-label="Закрыть"></button>' +
+      '<div class="sheet" role="dialog" aria-label="Редактировать образ"><span class="grab"></span><h2>Образ</h2>' +
+      '<div class="field"><label for="elName">Название</label><input id="elName" maxlength="60" placeholder="Название образа" value="' + esc(S.elName) + '"></div>' +
+      '<div class="field"><span class="lb">Категория образа</span><div class="wrapline">' + lookCats().map(function (c) {
+        return '<button class="pill' + (S.elLc === c.k ? ' on' : '') + '" data-a="elLc" data-v="' + c.k + '">' + esc(c.name) + '</button>';
+      }).join('') + (S.newCatOpen ? '' : '<button class="pill" data-a="newCat">' + IC.plus + 'Новая</button>') + '</div>' +
+      (S.newCatOpen ? '<div class="addrow"><input id="newCatName" maxlength="30" placeholder="Например, Отпуск" value="' + esc(S.newCatName) + '"><button class="pill on" data-a="addCat">Добавить</button></div>' : '') + '</div>' +
+      '<button class="btn" data-a="saveEditLook"' + (S.busy ? ' disabled' : '') + '>' + (S.busy ? 'Сохраняю…' : 'Сохранить') + '</button>' +
+      '<button class="btn plain" data-a="closeEditLook">Отмена</button></div>';
+  }
+
   function vConfirm() {
     return '<button class="shade" data-a="cancelConfirm" aria-label="Отмена"></button>' +
       '<div class="sheet" role="dialog" aria-label="Подтверждение"><span class="grab"></span><h2>Удалить?</h2>' +
@@ -411,12 +424,15 @@ img{display:block}
     if (S.confirm) html += vConfirm();
     if (S.renameOpen) html += vRename();
     if (S.catOpen) html += vCat();
+    if (S.elOpen) html += vEditLook();
     app.innerHTML = html;
     app.querySelectorAll('[data-keep]').forEach(function (el) { if (keep[el.dataset.keep]) el.scrollLeft = keep[el.dataset.keep]; });
     var inp = document.getElementById('lookName');
     if (inp) inp.addEventListener('input', function () { S.lookName = inp.value; });
     var ri = document.getElementById('renameInput');
     if (ri) { ri.addEventListener('input', function () { S.renameVal = ri.value; }); }
+    var eln = document.getElementById('elName');
+    if (eln) { eln.addEventListener('input', function () { S.elName = eln.value; }); }
     var nic = document.getElementById('newItemCatName');
     if (nic) { nic.addEventListener('input', function () { S.newItemCatName = nic.value; }); }
     var nc = document.getElementById('newCatName');
@@ -446,6 +462,7 @@ img{display:block}
       if (S.confirm) { S.confirm = null; return render(); }
       if (S.renameOpen) { S.renameOpen = false; return render(); }
       if (S.catOpen) { S.catOpen = false; return render(); }
+      if (S.elOpen) { S.elOpen = false; return render(); }
       if (S.screen === 'look') return go('looks');
       go(S.prev && S.prev !== S.screen && S.prev !== 'builder' ? S.prev : 'wardrobe');
     },
@@ -476,6 +493,20 @@ img{display:block}
       }).catch(function () { S.busy = false; toast('Не получилось добавить категорию'); });
     },
     openLook: function (v) { go('look', { lookId: v }); },
+    openEditLook: function () {
+      var l = D().looks.filter(function (x) { return x.id === S.lookId; })[0]; if (!l) return;
+      S.elName = l.name; S.elLc = l.lc; S.newCatOpen = false; S.elOpen = true; render();
+    },
+    closeEditLook: function () { S.elOpen = false; S.newCatOpen = false; render(); },
+    elLc: function (v) { S.elLc = v; render(); },
+    saveEditLook: function () {
+      if (S.busy) return;
+      S.busy = true; render();
+      api('updateLook', { id: S.lookId, name: S.elName, lc: S.elLc }).then(function () {
+        S.busy = false; S.elOpen = false; S.newCatOpen = false;
+        return reload().then(function () { haptic(); toast('Образ обновлён'); });
+      }).catch(function () { S.busy = false; render(); toast('Не получилось сохранить'); });
+    },
     buildWith: function (v) { if (S.sel.indexOf(v) < 0) S.sel.push(v); go('builder', { bcat: 'all' }); },
     toggle: function (v) {
       haptic('sel');
@@ -534,7 +565,7 @@ img{display:block}
       var name = (S.newCatName || '').trim(); if (!name || S.busy) return;
       S.busy = true;
       api('addLookCat', { name: name }).then(function (r) {
-        S.busy = false; S.newCatOpen = false; S.newCatName = ''; S.lc = r.key;
+        S.busy = false; S.newCatOpen = false; S.newCatName = ''; if (S.elOpen) S.elLc = r.key; else S.lc = r.key;
         return reload().then(function () { haptic(); toast('Категория добавлена'); });
       }).catch(function () { S.busy = false; toast('Не получилось добавить категорию'); });
     },
