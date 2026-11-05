@@ -305,8 +305,9 @@ img{display:block}
     var list = inCat(S.bcat);
     var h = header('<button class="round" data-a="back" aria-label="Закрыть">' + IC.close + '</button>',
       '<button class="pill" style="background:var(--chip);border-color:var(--chip)" data-a="reset">Сбросить</button>');
-    h += '<h1 class="h1">Собрать<br><span class="thin">образ</span></h1>';
-    h += '<p class="sub">Переходите по категориям и нажимайте<br>«Выбрать» — выбор сохраняется</p>';
+    h += S.editLookId ? '<h1 class="h1">Изменить<br><span class="thin">образ</span></h1>' : '<h1 class="h1">Собрать<br><span class="thin">образ</span></h1>';
+    h += S.editLookId ? '<p class="sub">Нажмите «Выбрать», чтобы добавить вещь,<br>или «Выбрано», чтобы убрать её из образа</p>'
+      : '<p class="sub">Переходите по категориям и нажимайте<br>«Выбрать» — выбор сохраняется</p>';
     if (!items().length) return h + '<div class="empty">В гардеробе пока нет вещей.</div>';
     h += covers(S.bcat, 'bcat', true);
     h += '<div class="grid">' + list.map(function (it) {
@@ -324,7 +325,8 @@ img{display:block}
     var th = S.sel.slice(0, 4).map(function (id) { var i = byId(id); return i ? '<span><img src="' + esc(i.thumb) + '" alt=""></span>' : ''; }).join('');
     return '<div class="selbar"><div><small>Собрано</small><b>' + S.sel.length + '</b></div>' +
       '<div class="th">' + th + '</div>' +
-      '<button class="go" data-a="openSave"' + (S.sel.length ? '' : ' disabled') + '>Готово</button></div>';
+      (S.editLookId ? '<button class="go" data-a="saveItems"' + (S.sel.length && !S.busy ? '' : ' disabled') + '>' + (S.busy ? '…' : 'Сохранить') + '</button></div>'
+        : '<button class="go" data-a="openSave"' + (S.sel.length ? '' : ' disabled') + '>Готово</button></div>');
   }
 
   function vLooks() {
@@ -357,7 +359,8 @@ img{display:block}
       (isStylist() ? '<button class="round sm" data-a="openEditLook" aria-label="Редактировать образ">' + IC.edit + '</button>' : '') + '</div>';
     if (l.comment) h += '<div class="note"><small>Комментарий стилиста</small><p>' + esc(l.comment) + '</p></div>';
     h += '<div class="grid" style="margin-top:' + (l.comment ? 8 : 20) + 'px">' + l.items.map(function (id) { var it = byId(id); return it ? itemCard(it) : ''; }).join('') + '</div>';
-    if (isStylist()) h += '<button class="btn ghost" style="margin-top:16px" data-a="askDelLook" data-v="' + l.id + '">' + IC.trash + 'Удалить образ</button>';
+    if (isStylist()) h += '<button class="btn" style="margin-top:16px" data-a="editItems">' + IC.plus + 'Добавить или убрать вещи</button>' +
+      '<button class="btn ghost" style="margin-top:8px" data-a="askDelLook" data-v="' + l.id + '">' + IC.trash + 'Удалить образ</button>';
     return h;
   }
 
@@ -464,6 +467,7 @@ img{display:block}
       if (S.renameOpen) { S.renameOpen = false; return render(); }
       if (S.catOpen) { S.catOpen = false; return render(); }
       if (S.elOpen) { S.elOpen = false; return render(); }
+      if (S.screen === 'builder' && S.editLookId) { var lid = S.editLookId; S.editLookId = null; S.sel = []; return go('look', { lookId: lid }); }
       if (S.screen === 'look') return go('looks');
       go(S.prev && S.prev !== S.screen && S.prev !== 'builder' ? S.prev : 'wardrobe');
     },
@@ -508,7 +512,19 @@ img{display:block}
         return reload().then(function () { haptic(); toast('Образ обновлён'); });
       }).catch(function () { S.busy = false; render(); toast('Не получилось сохранить'); });
     },
-    buildWith: function (v) { if (S.sel.indexOf(v) < 0) S.sel.push(v); go('builder', { bcat: 'all' }); },
+    editItems: function () {
+      var l = D().looks.filter(function (x) { return x.id === S.lookId; })[0]; if (!l) return;
+      S.editLookId = l.id; S.sel = l.items.slice(); go('builder', { bcat: 'all' });
+    },
+    saveItems: function () {
+      if (S.busy || !S.sel.length || !S.editLookId) return;
+      var lid = S.editLookId; S.busy = true; render();
+      api('setLookItems', { id: lid, items: S.sel }).then(function () {
+        S.busy = false; S.editLookId = null; S.sel = [];
+        return reload().then(function () { haptic(); toast('Образ обновлён'); go('look', { lookId: lid }); });
+      }).catch(function () { S.busy = false; render(); toast('Не получилось сохранить'); });
+    },
+    buildWith: function (v) { S.editLookId = null; if (S.sel.indexOf(v) < 0) S.sel.push(v); go('builder', { bcat: 'all' }); },
     toggle: function (v) {
       haptic('sel');
       var i = S.sel.indexOf(v);
