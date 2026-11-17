@@ -19,6 +19,7 @@ img{display:block}
 .round{width:44px;height:44px;border-radius:22px;background:var(--chip);display:flex;align-items:center;justify-content:center;flex:none}
 .round.dark{background:var(--ink);color:#fff}
 .avatar{font-size:13px;font-weight:500;letter-spacing:.02em}
+.quote{flex:1;min-width:0;margin:0 12px 0 0;font-size:12px;line-height:1.35;color:var(--muted);font-style:italic;max-width:300px}
 .h1{margin:22px 0 0;font-size:52px;line-height:.95;font-weight:500;letter-spacing:-.045em}
 .h1 .thin{font-weight:200}
 .sub{margin:12px 0 0;font-size:14px;line-height:1.3;color:var(--muted)}
@@ -249,13 +250,18 @@ img{display:block}
   }
 
   function header(left, right) { return '<div class="top">' + left + (right || '') + '</div>'; }
-  function avatar() { return '<span class="round avatar">' + esc(initials(D().client)) + '</span>'; }
+  // цитата дня: меняется раз в сутки
+  var QUOTES = ["Стиль — это способ сказать, кто вы, не произнося ни слова.", "Сегодня отличный день, чтобы надеть то, что бережёте «на особый случай».", "Уверенность — лучший аксессуар, и он подходит ко всему.", "Красота начинается в тот момент, когда вы решаете быть собой.", "Меньше вещей — больше образов. Больше образов — больше свободы.", "Одевайтесь для той жизни, которую хотите прожить.", "Хороший образ — это когда вам удобно и хочется улыбаться.", "Ваш гардероб — не про моду, а про ваше настроение.", "Позвольте себе сегодня немного больше, чем обычно.", "Самое стильное, что можно надеть, — спокойствие.", "Женственность — это не платье, а то, как вы его носите.", "Начните день с образа, в котором вы себе нравитесь.", "Элегантность — это внимание к деталям и к себе.", "Вы не обязаны быть яркой каждый день. Вы обязаны быть собой.", "Пусть сегодня одна вещь в образе будет просто для радости.", "Стиль не покупают — его собирают, день за днём.", "Улыбка делает любой образ законченным.", "Ваше тело заслуживает одежды, в которой ему хорошо.", "Классика никогда не подводит. Как и вера в себя.", "Сегодня можно выбрать то, что хочется, а не то, что «надо».", "Каждое утро — новая возможность выглядеть так, как вы себя чувствуете.", "Простота — высшая форма изысканности.", "Красивые вещи живут дольше, когда их носят с любовью.", "Будьте той, на кого вы бы сами засмотрелись.", "Цвет может изменить настроение. Попробуйте сегодня.", "Ваш стиль — ваша история. Пусть сегодня в ней будет хорошая глава.", "Не ждите повода — станьте им.", "Лучший образ — тот, в котором вы забываете о себе и живёте.", "Нежность и сила прекрасно сочетаются. Как шёлк и кожа.", "Позаботьтесь о себе так же красиво, как о своём образе.", "Сегодня вы прекрасны — и это не обсуждается."];
+  function quote() {
+    var d = new Date(), day = Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000);
+    return '<p class="quote">' + esc(QUOTES[day % QUOTES.length]) + '</p>';
+  }
   function backBtn(act) { return '<button class="round" data-a="' + (act || 'back') + '" aria-label="Назад">' + IC.back + '</button>'; }
 
   // ===================== экраны =====================
   function vWardrobe() {
     var list = inCat(S.cat);
-    var h = header(avatar());
+    var h = header(quote());
     h += '<h1 class="h1">Гардероб</h1>';
     h += isStylist()
       ? '<p class="sub">' + esc(D().client) + (D().stylist ? '<br>клиент стилиста ' + esc(D().stylist) : '') + '</p>'
@@ -331,7 +337,7 @@ img{display:block}
 
   function vLooks() {
     var looks = D().looks.filter(function (l) { return S.lf === 'all' || l.lc === S.lf; });
-    var h = header(avatar(), isStylist() ? '<button class="round dark" data-a="go" data-v="builder" aria-label="Новый образ">' + IC.plus + '</button>' : '');
+    var h = header(quote(), isStylist() ? '<button class="round dark" data-a="go" data-v="builder" aria-label="Новый образ">' + IC.plus + '</button>' : '');
     h += '<h1 class="h1">Образы</h1>';
     h += '<div class="stat"><b>' + D().looks.length + '</b><small>' + plural(D().looks.length, ['готовый<br>образ', 'готовых<br>образа', 'готовых<br>образов']).replace(/^\d+ /, '') + '</small></div>';
     if (!D().looks.length) {
